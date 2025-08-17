@@ -90,7 +90,7 @@ jobs:
     
     - name: Upload logs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: hackathon-agent-logs-${{ github.run_number }}
         path: |
@@ -206,7 +206,7 @@ jobs:
     
     - name: Upload test logs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs-${{ github.run_number }}
         path: src/hackathon_agent.log
