@@ -88,15 +88,7 @@ jobs:
         cd src
         python3 main.py
     
-    - name: Upload logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: hackathon-agent-logs-${{ github.run_number }}
-        path: |
-          src/hackathon_agent.log
-          logs/
-        retention-days: 7
+
     
     - name: Notify on failure
       if: failure()
@@ -203,11 +195,4 @@ jobs:
       run: |
         cd src
         python3 main.py
-    
-    - name: Upload test logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-logs-${{ github.run_number }}
-        path: src/hackathon_agent.log
-        retention-days: 3
+
