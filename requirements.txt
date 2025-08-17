@@ -2,12 +2,14 @@ google-api-python-client==2.110.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.1.0
 google-auth==2.24.0
-
-tweepy==4.14.0
 google-generativeai==0.3.2
 google-genai==0.3.0
+
+tweepy==4.14.0
 
 pydantic==2.5.2
 python-dateutil==2.8.2
 pyyaml==6.0.1
 python-dotenv==1.0.0
+
+beautifulsoup4==4.13.4
