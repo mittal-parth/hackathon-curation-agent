@@ -2,6 +2,10 @@
 
 An intelligent agent that automatically curates hackathons from your email newsletters, evaluates them using AI, and posts the best ones to Twitter.
 
+## 📧 Sample Email Report
+<img width="1274" height="852" alt="image" src="https://github.com/user-attachments/assets/1ba339f4-2302-45e2-a758-41399a200df5" />
+
+
 ## 🎯 What It Does
 
 1. **Email Processing**: Monitors Gmail for Hackathons with a specific label
