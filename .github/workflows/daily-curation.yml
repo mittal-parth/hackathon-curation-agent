@@ -1,0 +1,213 @@
+name: Daily Hackathon Curation
+
+on:
+  schedule:
+    # Run every 2 days at 10:00 PM IST (4:30 PM UTC)
+    - cron: '30 16 */2 * *'
+  
+  workflow_dispatch:
+    # Allow manual triggering for testing
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no actual posting/email marking)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      max_emails:
+        description: 'Maximum emails to process'
+        required: false
+        default: '10'
+        type: string
+      max_twitter_posts:
+        description: 'Maximum Twitter posts'
+        required: false
+        default: '3'
+        type: string
+
+jobs:
+  curate-hackathons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    env:
+      # Gmail API credentials
+      GMAIL_CREDENTIALS: ${{ secrets.GMAIL_CREDENTIALS }}
+      HACKATHON_EMAIL_LABEL: ${{ vars.HACKATHON_EMAIL_LABEL || 'Hackathons' }}
+      HACKATHON_INDICATORS: ${{ vars.HACKATHON_INDICATORS || '' }}
+      
+      # Google Gemini API
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      
+      # Google Sheets API
+      SHEETS_CREDENTIALS: ${{ secrets.SHEETS_CREDENTIALS }}
+      GOOGLE_SHEETS_ID: ${{ secrets.GOOGLE_SHEETS_ID }}
+      
+      # Twitter API credentials
+      TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+      TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+      TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+      TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+      TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      
+      # Configuration with fallbacks
+      LOG_LEVEL: 'INFO'
+      HACKATHON_BATCH_SIZE: ${{ vars.HACKATHON_BATCH_SIZE || '4' }}
+      HACKATHON_BATCH_DELAY: ${{ vars.HACKATHON_BATCH_DELAY || '1.0' }}
+      SEND_SUMMARY_EMAIL: ${{ vars.SEND_SUMMARY_EMAIL || 'true' }}
+      SUMMARY_EMAIL_RECIPIENTS: ${{ secrets.SUMMARY_EMAIL_RECIPIENTS || '' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create log directory
+      run: mkdir -p logs
+        
+    - name: Run hackathon curation
+      env:
+        # Override with workflow inputs when available
+        DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        MAX_EMAILS_PER_RUN: ${{ github.event.inputs.max_emails || '10' }}
+        MAX_TWITTER_POSTS: ${{ github.event.inputs.max_twitter_posts || '3' }}
+        
+      run: |
+        cd src
+        python3 main.py
+    
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: hackathon-agent-logs-${{ github.run_number }}
+        path: |
+          src/hackathon_agent.log
+          logs/
+        retention-days: 7
+    
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const issue = {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚨 Hackathon Curation Failed - ${new Date().toDateString()}`,
+            body: `
+            The daily hackathon curation workflow failed.
+            
+            **Run Details:**
+            - Workflow: ${context.workflow}
+            - Run ID: ${context.runId}
+            - Run Number: ${context.runNumber}
+            - Commit: ${context.sha}
+            
+            **Links:**
+            - [View Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            - [View Logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            
+            Please check the logs and fix any issues.
+            `,
+            labels: ['bug', 'automation', 'hackathon-curation']
+          };
+          
+          // Only create issue if this is the scheduled run (not manual)
+          if (context.eventName === 'schedule') {
+            await github.rest.issues.create(issue);
+          }
+
+---
+# Alternative workflow for testing
+name: Test Hackathon Curation
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Test mode'
+        required: true
+        default: 'dry_run'
+        type: choice
+        options:
+          - 'dry_run'
+          - 'single_email'
+          - 'full_test'
+
+jobs:
+  test-curation:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_mode != ''
+    
+    env:
+      # Gmail API credentials
+      GMAIL_CREDENTIALS: ${{ secrets.GMAIL_CREDENTIALS }}
+      HACKATHON_EMAIL_LABEL: ${{ vars.HACKATHON_EMAIL_LABEL || 'Hackathons' }}
+      HACKATHON_INDICATORS: ${{ vars.HACKATHON_INDICATORS || '' }}
+      
+      # Google Gemini API
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      
+      # Google Sheets API
+      SHEETS_CREDENTIALS: ${{ secrets.SHEETS_CREDENTIALS }}
+      GOOGLE_SHEETS_ID: ${{ secrets.GOOGLE_SHEETS_ID }}
+      
+      # Twitter API credentials
+      TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+      TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+      TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+      TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+      TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      
+      # Configuration with fallbacks
+      LOG_LEVEL: 'INFO'
+      HACKATHON_BATCH_SIZE: ${{ vars.HACKATHON_BATCH_SIZE || '4' }}
+      HACKATHON_BATCH_DELAY: ${{ vars.HACKATHON_BATCH_DELAY || '1.0' }}
+      SEND_SUMMARY_EMAIL: ${{ vars.SEND_SUMMARY_EMAIL || 'false' }}
+      SUMMARY_EMAIL_RECIPIENTS: ${{ secrets.SUMMARY_EMAIL_RECIPIENTS || '' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run test
+      env:
+        DRY_RUN: 'false'
+        MAX_EMAILS_PER_RUN: ${{ vars.MAX_EMAILS_PER_RUN || '10' }}
+        MAX_TWITTER_POSTS: ${{ vars.MAX_TWITTER_POSTS || '10' }}
+        
+      run: |
+        cd src
+        python3 main.py
+    
+    - name: Upload test logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-logs-${{ github.run_number }}
+        path: src/hackathon_agent.log
+        retention-days: 3

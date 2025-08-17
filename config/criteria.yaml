@@ -1,0 +1,9 @@
+hackathon_criteria:
+  minimum_prize_usd: 2000  # Minimum prize money in USD (handles crypto/other currencies)
+  registration_not_past: true  # Registration/submission deadline should not be in the past
+    
+twitter_settings:
+  max_hashtags: 5
+  include_prize_info: true
+  include_deadline: true
+  thread_long_descriptions: true  # Create Twitter threads for long descriptions
