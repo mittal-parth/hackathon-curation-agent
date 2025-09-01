@@ -3,7 +3,7 @@
 An intelligent agent that automatically curates hackathons from your email newsletters, evaluates them using AI, and posts the best ones to Twitter.
 
 ## 📧 Sample Email Report
-<img width="1274" height="852" alt="image" src="https://github.com/user-attachments/assets/1ba339f4-2302-45e2-a758-41399a200df5" />
+<img width="1310" height="869" alt="image" src="https://github.com/user-attachments/assets/5423d51a-5934-4408-910e-ee5344f89ac9" />
 
 
 ## 🎯 What It Does
@@ -28,7 +28,7 @@ graph TD
     G -->|No| H[📤 Send Summary Email]
     G -->|Yes| I[🤖 AI Analysis with Gemini]
     I --> J[✅ Evaluate Against Criteria]
-    J --> K[💾 Store in Google Sheets]
+    J --> K[💾 Check for duplicates and store in Google Sheets]
     K --> L[🐦 Post to Twitter]
     L --> M[✉️ Mark Emails Read]
     M --> N[📤 Send Summary Email]
@@ -37,7 +37,6 @@ graph TD
     style A fill:#e1f5fe
     style O fill:#c8e6c9
     style I fill:#fff3e0
-    style K fill:#f3e5f5
 ```
 
 ## 🚀 Quick Start
