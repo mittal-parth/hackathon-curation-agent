@@ -226,9 +226,13 @@ class HackathonCurationAgent:
                 return results
 
             # Step 4: Store approved hackathons (batch operation)
-            storage_result = await self.store_hackathons(hackathons)
+            self.logger.info(f"💾 Processing {len(hackathons)} AI-approved hackathons for storage...")
+            storage_result = await self.check_duplicates_and_store_hackathons(hackathons)
             results["hackathons_stored"] = storage_result["count"]
+            results["duplicates_filtered"] = storage_result.get("duplicates_filtered", 0)
             new_hackathons = storage_result["new_hackathons"]
+            
+            self.logger.info(f"📊 Storage summary: {len(hackathons)} approved → {len(new_hackathons)} stored, {results['duplicates_filtered']} duplicates filtered")
 
             # Step 5: Post to Twitter (only new hackathons that were actually stored)
             if not self.dry_run and new_hackathons:
@@ -244,7 +248,8 @@ class HackathonCurationAgent:
 
             # Step 7: Send summary email (if configured)
             if self.send_summary_email and self.summary_email_recipients:
-                await self.send_summary_email_report(results, hackathons)
+                self.logger.info(f"📧 Sending summary email with {len(new_hackathons)} new hackathons (filtered from {len(hackathons)} total)")
+                await self.send_summary_email_report(results, new_hackathons)
 
             # Generate summary
             results["summary"] = self.generate_summary(results)
@@ -452,28 +457,51 @@ class HackathonCurationAgent:
 
         return filtered_links
 
-    async def store_hackathons(
+    async def check_duplicates_and_store_hackathons(
         self, hackathons: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
         Store approved hackathons in Google Sheets using batch operation.
+        Checks for duplicates before storing.
         """
         if not hackathons:
             self.logger.info("💾 No hackathons to store")
             return {"count": 0, "new_hackathons": []}
 
-        self.logger.info(f"💾 Storing {len(hackathons)} hackathons in batch...")
+        self.logger.info(f"💾 Processing {len(hackathons)} hackathons for storage...")
+
+        # Step 1: Bulk duplicate checking
+        new_hackathons = []
+        duplicate_count = 0
+        
+        for hackathon in hackathons:
+            if self.storage_manager.check_duplicate(hackathon):
+                duplicate_count += 1
+                self.logger.info(f"Duplicate found: {hackathon.get('name', 'Unknown')}")
+            else:
+                new_hackathons.append(hackathon)
+
+        self.logger.info(f"🔍 Duplicate check complete: {duplicate_count} duplicates, {len(new_hackathons)} new hackathons")
+
+        if not new_hackathons:
+            self.logger.info("💾 No new hackathons to store after duplicate filtering")
+            return {"count": 0, "new_hackathons": [], "duplicates_filtered": duplicate_count}
+
+        # Step 2: Store new hackathons in batch
+        self.logger.info(f"💾 Storing {len(new_hackathons)} new hackathons in batch...")
 
         if not self.dry_run:
-            result = self.storage_manager.add_hackathons_batch(hackathons)
+            result = self.storage_manager.add_hackathons_batch(new_hackathons)
         else:
             self.logger.info(
-                f"[DRY RUN] Would store: {', '.join([h.get('name', 'Unknown') for h in hackathons])}"
+                f"[DRY RUN] Would store: {', '.join([h.get('name', 'Unknown') for h in new_hackathons])}"
             )
-            result = {"count": len(hackathons), "new_hackathons": hackathons}
+            result = {"count": len(new_hackathons), "new_hackathons": new_hackathons}
 
-        self.logger.info(f"📈 Successfully stored {result['count']} hackathons")
-        # Note: No duplicate filtering needed here since we do it earlier in the process
+        self.logger.info(f"📈 Successfully stored {result['count']} new hackathons")
+        
+        # Add duplicate count to result for reporting
+        result["duplicates_filtered"] = duplicate_count
 
         return result
 
@@ -591,6 +619,10 @@ class HackathonCurationAgent:
             f"Stored {results['hackathons_stored']} hackathons",
         ]
 
+        # Add duplicate count if available
+        if results.get("duplicates_filtered", 0) > 0:
+            summary_parts.append(f"Filtered {results['duplicates_filtered']} duplicates")
+
         if results["twitter_posts"] > 0:
             summary_parts.append(f"Posted {results['twitter_posts']} to Twitter")
 
@@ -618,6 +650,8 @@ async def main():
     print(f"Links Found: {results['hackathons_found']} ({results['hackathon_related_links']} hackathon-related)")
     print(f"Hackathons Approved: {results['hackathons_approved']}")
     print(f"Hackathons Stored: {results['hackathons_stored']}")
+    if results.get("duplicates_filtered", 0) > 0:
+        print(f"Duplicates Filtered: {results['duplicates_filtered']}")
     print(f"Twitter Posts: {results['twitter_posts']}")
     print(f"Summary: {results['summary']}")
 

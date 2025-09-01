@@ -91,6 +91,12 @@ def main():
     """Main function to set up OAuth credentials."""
     print("🔐 Gmail API OAuth Setup")
     print("=" * 40)
+    print("This script will help you generate OAuth credentials for Gmail API access.")
+    print("Use this when:")
+    print("  - Setting up for the first time")
+    print("  - Your OAuth token has expired")
+    print("  - You get 'invalid_grant' errors")
+    print()
 
     # Check if client secrets file exists
     client_secrets_file = input(
@@ -99,6 +105,11 @@ def main():
 
     if not os.path.exists(client_secrets_file):
         print(f"❌ File not found: {client_secrets_file}")
+        print("\n💡 To get this file:")
+        print("1. Go to https://console.cloud.google.com/")
+        print("2. Select your project")
+        print("3. Go to APIs & Services → Credentials")
+        print("4. Create or download OAuth 2.0 Client ID (Desktop application)")
         return
 
     try:
@@ -106,6 +117,7 @@ def main():
         print("\n🔄 Setting up OAuth credentials...")
         print("This will open your browser for authentication.")
         print("Please authorize the application to access your Gmail.")
+        print("⚠️  Make sure to grant access to the requested scopes.")
 
         creds = setup_oauth_credentials(client_secrets_file)
 
@@ -128,12 +140,22 @@ def main():
                 f.write(github_creds)
 
             print(f"\n💾 Credentials also saved to {output_file} for easy copying")
+            
+            print("\n🔧 Next steps:")
+            print("1. Update your GMAIL_CREDENTIALS environment variable")
+            print("2. Or add to GitHub Secrets if using GitHub Actions")
+            print("3. Test with: DEV_MODE=true DRY_RUN=true python3 main.py")
 
         else:
             print("❌ Failed to generate valid credentials")
 
     except Exception as e:
         print(f"❌ Error during OAuth setup: {e}")
+        print("\n💡 Common solutions:")
+        print("1. Make sure your OAuth client ID is for 'Desktop application'")
+        print("2. Check that Gmail API is enabled in your Google Cloud project")
+        print("3. Try clearing your browser cookies and cache")
+        print("4. Make sure you're using the same Google account")
 
 
 if __name__ == "__main__":

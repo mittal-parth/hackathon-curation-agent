@@ -180,12 +180,17 @@ class StorageManager:
 
             hackathon_name = hackathon.get("name", "").strip().lower()
             hackathon_link = hackathon.get("link", "").strip()
+            
+            self.logger.debug("Checking for duplicates...")
+            self.logger.debug(f"Hackathon Name, Link: {hackathon_name}, {hackathon_link}")
 
             # Check for duplicates based on name or link
             for row in values[1:]:  # Skip header row
                 if len(row) >= 2:
                     existing_name = row[0].strip().lower()
                     existing_link = row[1].strip() if len(row) > 1 else ""
+
+                    self.logger.debug(f"Existing Name, Link: {existing_name}, {existing_link}")
 
                     # Check for exact name match or link match
                     if hackathon_name == existing_name or (

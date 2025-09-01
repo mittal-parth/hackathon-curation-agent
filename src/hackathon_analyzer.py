@@ -205,7 +205,7 @@ URLS TO ANALYZE:
 
 EVALUATION CRITERIA:
 - Minimum prize: ${min_prize} USD (convert from crypto/other currencies if needed)
-- Registration/submission deadline must NOT be in the past
+- Registration/submission deadline must NOT be in the past OR within next 24 hours
 - Must be a legitimate hackathon (no scams, MLMs, or suspicious events)
 - Must be open to Indian participants
 
@@ -225,7 +225,7 @@ Return your response as a valid JSON object (wrap in ```json code block if neede
             "prizes": "Prize information with USD amount",
             "prize_amount_usd": <total prize value in USD as integer>,
             "mode": "virtual/in-person/hybrid",
-            "tweet": "Simple tweet with format:\\n\\nName: [name]\\nLink: [link]\\nDates: [dates]\\nTheme: [theme]\\nPrizes: [prizes]"
+            "tweet": "Simple tweet with format:\\n\\nName: [name]\\nLink: [link]\\n📅 Dates: [dates]\\n🎯 Theme: [theme]\\n💰 Prizes: [prizes]"
         }}
     ],
     "rejected_count": <number of hackathons that didn't meet criteria>,
