@@ -2,42 +2,21 @@
 
 An intelligent agent that automatically curates hackathons from your email newsletters, evaluates them using AI, and posts the best ones to Twitter.
 
+<img width="839" height="843" alt="image" src="https://github.com/user-attachments/assets/6cc210e4-f865-4112-a315-11c8fd824000" />
+
+
 ## 📧 Sample Email Report
 <img width="1310" height="869" alt="image" src="https://github.com/user-attachments/assets/5423d51a-5934-4408-910e-ee5344f89ac9" />
 
 
 ## 🎯 What It Does
 
-1. **Email Processing**: Monitors Gmail for Hackathons with a specific label
-2. **AI Analysis and Curation**: Uses Google Gemini with Search Grounding to analyze hackathon URLs directly. Automatically extracts hackathon details (dates, prizes, themes, legitimacy) and curates them based on your criteria
-3. **Storage**: Stores approved hackathons in Google Sheets with duplicate detection
-4. **Social Sharing**: Automatically posts curated hackathons to Twitter
-5. **Reporting**: Sends a summary email to the configured recipients
-6. **Automated**: Runs via GitHub Actions
-
-## 📊 Flow Diagram
-
-```mermaid
-graph TD
-    A[🚀 Start Agent] --> B[🔐 Authenticate Services]
-    B --> C[📧 Fetch Unread Emails]
-    C --> D[🔗 Extract & Clean Links]
-    D --> E[🎯 Filter Hackathon Links]
-    E --> F[💾 Check Existing in Sheets]
-    F --> G{New Links?}
-    G -->|No| H[📤 Send Summary Email]
-    G -->|Yes| I[🤖 AI Analysis with Gemini]
-    I --> J[✅ Evaluate Against Criteria]
-    J --> K[💾 Check for duplicates and store in Google Sheets]
-    K --> L[🐦 Post to Twitter]
-    L --> M[✉️ Mark Emails Read]
-    M --> N[📤 Send Summary Email]
-    N --> O[🏁 Complete]
-    
-    style A fill:#e1f5fe
-    style O fill:#c8e6c9
-    style I fill:#fff3e0
-```
+1. **Email Processing**: Monitors Gmail for Hackathons with a specific label.
+2. **AI Analysis and Curation**: Uses Google Gemini along with Grouding with Google Search to analyze hackathon URLs in real-time. Automatically extracts hackathon details (dates, prizes, themes, legitimacy) and curates them based on your criteria.
+3. **Storage**: Stores approved hackathons in Google Sheets with duplicate detection.
+4. **Social Sharing**: Automatically posts curated hackathons to Twitter.
+5. **Reporting**: Sends a summary email to the configured recipients.
+6. **Automated**: Runs via GitHub Actions.
 
 ## 🚀 Quick Start
 
@@ -166,10 +145,6 @@ DEV_MODE=true MAX_EMAILS_PER_RUN=1 python3 src/main.py
 # Debug mode
 DEV_MODE=true LOG_LEVEL=DEBUG python3 src/main.py
 ```
-
-## 📜 License
-
-MIT License - feel free to modify and distribute!
 
 ## 🤝 Contributing
 
