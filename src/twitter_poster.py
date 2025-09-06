@@ -12,7 +12,7 @@ class TwitterPoster:
 
         # Rate limiting
         self.last_post_time = 0
-        self.min_interval = 60  # Minimum seconds between posts
+        self.min_interval = 20  # Minimum seconds between posts
 
     def authenticate(self) -> bool:
         """Authenticate with Twitter API v2 using OAuth 1.0a User Context."""

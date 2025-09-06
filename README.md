@@ -63,7 +63,7 @@ Follow the instructions in [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md)
 1. Apply for [Twitter Developer Account](https://developer.x.com/en/docs/x-api)
 2. Create a new app with Read/Write permissions
 3. Generate API keys and tokens
-4. Add the API keys to GitHub Secrets as TWITTER_BEARER_TOKEN, TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET
+4. Add the API keys to GitHub Secrets as TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET
 
 ### 🔧 Environment Variables
 
