@@ -73,7 +73,6 @@ GMAIL_CREDENTIALS={"type":"service_account",...}  # Gmail API service account JS
 GEMINI_API_KEY=your_gemini_api_key                # Google Gemini API key
 SHEETS_CREDENTIALS={"type":"service_account",...} # Google Sheets API service account JSON
 GOOGLE_SHEETS_ID=your_sheet_id_from_url          # Google Sheets spreadsheet ID
-TWITTER_BEARER_TOKEN=your_bearer_token            # Twitter API bearer token
 TWITTER_API_KEY=your_api_key                      # Twitter API key
 TWITTER_API_SECRET=your_api_secret                # Twitter API secret
 TWITTER_ACCESS_TOKEN=your_access_token            # Twitter access token
