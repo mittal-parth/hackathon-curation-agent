@@ -1,10 +1,12 @@
 import os
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Callable
 from datetime import datetime
 import logging
 import json
 import yaml
 import asyncio
+import time
+import random
 from google import genai
 from google.genai import types
 
@@ -42,6 +44,83 @@ class HackathonAnalyzer:
         # Batch processing configuration
         self.batch_size = int(os.getenv("HACKATHON_BATCH_SIZE", "4"))
         self.batch_delay = float(os.getenv("HACKATHON_BATCH_DELAY", "1.0"))
+
+    def _retry_with_exponential_backoff(
+        self, 
+        func: Callable, 
+        max_retries: int = 10, 
+        base_delay: float = 1.0,
+        max_delay: float = 60.0,
+        backoff_factor: float = 2.0,
+        jitter: bool = True
+    ):
+        """
+        Retry a function with exponential backoff for handling intermittent API failures.
+        
+        Args:
+            func: Function to retry (should be a lambda or callable)
+            max_retries: Maximum number of retry attempts (default: 10)
+            base_delay: Initial delay in seconds (default: 1.0)
+            max_delay: Maximum delay between retries in seconds (default: 60.0)
+            backoff_factor: Factor to multiply delay by each retry (default: 2.0)
+            jitter: Whether to add random jitter to delay (default: True)
+            
+        Returns:
+            Result of the successful function call
+            
+        Raises:
+            Last exception encountered if all retries fail
+        """
+        last_exception = None
+        
+        for attempt in range(max_retries + 1):  # +1 because first attempt is not a retry
+            try:
+                # Call the function
+                result = func()
+                
+                # If we get here, the call was successful
+                if attempt > 0:
+                    self.logger.info(f"✅ Gemini API call succeeded after {attempt} retries")
+                
+                return result
+                
+            except Exception as e:
+                last_exception = e
+                
+                # Check if this is a retryable error
+                error_str = str(e)
+                is_retryable = (
+                    "500" in error_str or 
+                    "INTERNAL" in error_str or
+                    "internal error" in error_str.lower() or
+                    "timeout" in error_str.lower() or
+                    "temporarily unavailable" in error_str.lower()
+                )
+                
+                if not is_retryable or attempt >= max_retries:
+                    # Don't retry for non-retryable errors or if max retries reached
+                    if attempt >= max_retries:
+                        self.logger.error(f"❌ Gemini API call failed after {max_retries} retries: {e}")
+                    else:
+                        self.logger.error(f"❌ Gemini API call failed with non-retryable error: {e}")
+                    raise e
+                
+                # Calculate delay for next retry
+                delay = min(base_delay * (backoff_factor ** attempt), max_delay)
+                
+                # Add jitter to avoid thundering herd
+                if jitter:
+                    delay += random.uniform(0, delay * 0.1)  # Add up to 10% jitter
+                
+                self.logger.warning(
+                    f"⚠️ Gemini API call failed (attempt {attempt + 1}/{max_retries + 1}): {e}. "
+                    f"Retrying in {delay:.2f} seconds..."
+                )
+                
+                time.sleep(delay)
+        
+        # This should never be reached due to the logic above, but just in case
+        raise last_exception
 
     async def analyze_hackathon_urls(self, urls: List[str]) -> List[Dict[str, Any]]:
         """
@@ -148,10 +227,13 @@ class HackathonAnalyzer:
             # Create prompt for batch AI analysis
             prompt = self._create_ai_analysis_prompt(urls)
 
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=self.config,
+            # Use retry helper for API call
+            response = self._retry_with_exponential_backoff(
+                lambda: self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=self.config,
+                )
             )
 
             # Parse JSON response - extract JSON from response text
@@ -282,10 +364,13 @@ Apply your AI intelligence to extract accurate information and evaluate criteria
     def test_ai_connection(self) -> bool:
         """Test AI connection and capabilities."""
         try:
-            self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents="What makes a hackathon legitimate and valuable for participants?",
-                config=self.config,
+            # Use retry helper for API call
+            self._retry_with_exponential_backoff(
+                lambda: self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents="What makes a hackathon legitimate and valuable for participants?",
+                    config=self.config,
+                )
             )
 
             self.logger.info("🤖 AI connection test successful")
@@ -302,10 +387,13 @@ Apply your AI intelligence to extract accurate information and evaluate criteria
             
             # self.logger.info("🔍 Testing Google Search grounding tool...")
             
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=test_prompt,
-                config=self.config,
+            # Use retry helper for API call
+            response = self._retry_with_exponential_backoff(
+                lambda: self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=test_prompt,
+                    config=self.config,
+                )
             )
             
             self.logger.info(f"Response: {response.text}")
