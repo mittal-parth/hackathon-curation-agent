@@ -347,6 +347,7 @@ class HackathonCurationAgent:
 
         # Get hackathon indicators from environment
         hackathon_indicators = self.get_hackathon_indicators()
+        self.logger.info(f"Hackathon indicators: {hackathon_indicators}")
         filtered_links = self.filter_hackathon_links(cleaned_links, hackathon_indicators)
 
         self.logger.info(f"Filtered Links: {filtered_links}")
