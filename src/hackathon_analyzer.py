@@ -161,12 +161,19 @@ class HackathonAnalyzer:
                     batch_hackathons = batch_result.get("approved_hackathons", [])
                     batch_analyzed = batch_result.get("total_analyzed", len(batch_urls))
                     batch_rejected = batch_result.get("rejected_count", 0)
+                    batch_rejection_reasons = batch_result.get("rejection_reasons", [])
                     
                     all_hackathons.extend(batch_hackathons)
                     total_analyzed += batch_analyzed
                     total_rejected += batch_rejected
                     
                     self.logger.info(f"✅ Batch {batch_num}: {len(batch_hackathons)} approved, {batch_rejected} rejected")
+                    
+                    # Log rejection reasons at INFO level for visibility
+                    if batch_rejected > 0 and batch_rejection_reasons:
+                        self.logger.info(f"❌ Rejection reasons for batch {batch_num}:")
+                        for reason in batch_rejection_reasons:
+                            self.logger.info(f"   - {reason}")
                 else:
                     self.logger.warning(f"⚠️ Batch {batch_num}: Analysis failed")
                     total_analyzed += len(batch_urls)
