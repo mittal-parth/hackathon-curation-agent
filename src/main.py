@@ -220,6 +220,11 @@ class HackathonCurationAgent:
                 results["summary"] = (
                     f"Processed {len(emails)} emails but found no new hackathons to analyze"
                 )
+                
+                # Mark emails as read even if no hackathons found
+                if not self.dry_run:
+                    await self.mark_emails_processed(emails)
+                
                 # Still send summary email even if no hackathons found
                 if self.send_summary_email and self.summary_email_recipients:
                     await self.send_summary_email_report(results, [])
@@ -378,10 +383,17 @@ class HackathonCurationAgent:
         }
 
     def clean_and_normalize_links(self, links: List[str]) -> List[str]:
-        """Clean and normalize links by removing query parameters to eliminate duplicates."""
+        """Clean and normalize links by removing query parameters to eliminate duplicates.
+        
+        Exception: For tracking/redirect URLs (e.g., /ls/click, /wf/open), query parameters
+        are preserved as they're needed for the redirect to work properly.
+        """
         from urllib.parse import urlparse, urlunparse
         
         cleaned_links = []
+        
+        # Patterns that indicate tracking/redirect URLs that need query parameters
+        redirect_patterns = ['/ls/click', '/wf/open', '/track/', '/redirect/', '/r/']
         
         for link in links:
             if not link or not isinstance(link, str):
@@ -390,15 +402,25 @@ class HackathonCurationAgent:
             # Parse URL and remove query parameters
             try:
                 parsed = urlparse(link.strip())
-                # Reconstruct URL without query parameters
-                clean_url = urlunparse((
-                    parsed.scheme,
-                    parsed.netloc,
-                    parsed.path,
-                    parsed.params,
-                    '',  # Remove query
-                    parsed.fragment
-                ))
+                
+                # Check if this is a tracking/redirect URL that needs query parameters
+                is_redirect = any(pattern in parsed.path for pattern in redirect_patterns)
+                
+                if is_redirect:
+                    # Keep the full URL with query parameters for redirect URLs
+                    clean_url = link.strip()
+                    self.logger.debug(f"Preserving query params for redirect URL: {parsed.netloc}{parsed.path}")
+                else:
+                    # Reconstruct URL without query parameters for regular URLs
+                    clean_url = urlunparse((
+                        parsed.scheme,
+                        parsed.netloc,
+                        parsed.path,
+                        parsed.params,
+                        '',  # Remove query
+                        parsed.fragment
+                    ))
+                
                 cleaned_links.append(clean_url)
                 
             except Exception as e:
