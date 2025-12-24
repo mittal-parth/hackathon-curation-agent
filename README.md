@@ -145,6 +145,17 @@ DEV_MODE=true MAX_EMAILS_PER_RUN=1 python3 src/main.py
 DEV_MODE=true LOG_LEVEL=DEBUG python3 src/main.py
 ```
 
+### Validating Google Sheets Connection
+If you're experiencing issues with data not appearing in your Google Sheet, use the validation script:
+
+```bash
+# Validate Google Sheets connection (local)
+DEV_MODE=true python3 src/validate_sheets_connection.py
+
+# Or in production (uses system env vars)
+python3 src/validate_sheets_connection.py
+```
+
 ## 🤝 Contributing
 
 Pull requests welcome! Please:
