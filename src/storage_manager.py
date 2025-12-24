@@ -11,6 +11,11 @@ import logging
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
+class StorageError(Exception):
+    """Exception raised when hackathon data fails to be stored in Google Sheets."""
+    pass
+
+
 class StorageManager:
     """
     Storage manager for Google Sheets integration.
@@ -400,17 +405,22 @@ class StorageManager:
             
             # Verify the write was successful
             if updated_rows == 0:
-                self.logger.warning(
-                    "⚠️  API returned 0 updated rows - data may not have been written!"
+                error_msg = (
+                    f"API returned 0 updated rows - data was NOT written! "
+                    f"Attempted to write {len(hackathons)} hackathons. "
+                    f"Check: 1) Service account permissions, 2) Spreadsheet ID, 3) Sheet name"
                 )
-                self.logger.warning(
-                    "   Check: 1) Service account permissions, 2) Spreadsheet ID, 3) Sheet name"
-                )
+                self.logger.error(f"⚠️  {error_msg}")
+                raise StorageError(error_msg)
             elif updated_rows != len(hackathons):
-                self.logger.warning(
-                    f"⚠️  Expected {len(hackathons)} rows but only {updated_rows} were updated"
+                error_msg = (
+                    f"Partial write detected! Expected {len(hackathons)} rows but only "
+                    f"{updated_rows} were updated. Data may be incomplete."
                 )
+                self.logger.error(f"⚠️  {error_msg}")
+                raise StorageError(error_msg)
 
+            # Only return success when all rows were written
             return {"count": len(hackathons), "new_hackathons": hackathons}
 
         except HttpError as error:
@@ -419,20 +429,27 @@ class StorageManager:
             self.logger.error(f"Error details: {error_details}")
             self.logger.error(f"Spreadsheet ID: {self.spreadsheet_id}, Sheet: {self.sheet_name}")
             
+            error_msg = f"Failed to write {len(hackathons)} hackathons to Google Sheets"
             if error.resp.status == 403:
-                self.logger.error(
-                    "Permission denied - ensure service account has Editor access to the spreadsheet"
-                )
+                error_msg += " - Permission denied. Ensure service account has Editor access to the spreadsheet."
+                self.logger.error("Permission denied - ensure service account has Editor access to the spreadsheet")
             elif error.resp.status == 404:
-                self.logger.error(
-                    "Spreadsheet not found - check GOOGLE_SHEETS_ID environment variable"
-                )
+                error_msg += " - Spreadsheet not found. Check GOOGLE_SHEETS_ID environment variable."
+                self.logger.error("Spreadsheet not found - check GOOGLE_SHEETS_ID environment variable")
+            else:
+                error_msg += f" - HTTP {error.resp.status}: {error_details}"
             
-            return {"count": 0, "new_hackathons": []}
+            raise StorageError(error_msg) from error
+        except StorageError:
+            # Re-raise StorageError as-is
+            raise
         except Exception as e:
-            self.logger.error(f"Unexpected error batch adding hackathons: {e}")
-            self.logger.error(f"Spreadsheet ID: {self.spreadsheet_id}, Sheet: {self.sheet_name}")
-            return {"count": 0, "new_hackathons": []}
+            error_msg = (
+                f"Unexpected error batch adding hackathons: {e}. "
+                f"Spreadsheet ID: {self.spreadsheet_id}, Sheet: {self.sheet_name}"
+            )
+            self.logger.error(error_msg)
+            raise StorageError(error_msg) from e
 
     def add_hackathon(self, hackathon: Dict[str, Any]) -> bool:
         """
