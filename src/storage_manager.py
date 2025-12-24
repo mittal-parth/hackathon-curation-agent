@@ -11,6 +11,11 @@ import logging
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
+class StorageError(Exception):
+    """Exception raised when hackathon data fails to be stored in Google Sheets."""
+    pass
+
+
 class StorageManager:
     """
     Storage manager for Google Sheets integration.
@@ -58,28 +63,47 @@ class StorageManager:
         try:
             # Try to load credentials from environment variable (for GitHub Actions)
             credentials_json = os.getenv("SHEETS_CREDENTIALS")
-            if credentials_json:
-                credentials_info = json.loads(credentials_json)
+            if not credentials_json:
+                self.logger.error("SHEETS_CREDENTIALS environment variable not found")
+                return False
+                
+            credentials_info = json.loads(credentials_json)
 
-                # For service account credentials
-                if (
-                    "type" in credentials_info
-                    and credentials_info["type"] == "service_account"
-                ):
-                    from google.oauth2 import service_account
+            # For service account credentials
+            if (
+                "type" in credentials_info
+                and credentials_info["type"] == "service_account"
+            ):
+                from google.oauth2 import service_account
 
-                    credentials = service_account.Credentials.from_service_account_info(
-                        credentials_info, scopes=SCOPES
-                    )
-                else:
-                    # For OAuth credentials
-                    credentials = Credentials.from_authorized_user_info(
-                        credentials_info, SCOPES
-                    )
+                credentials = service_account.Credentials.from_service_account_info(
+                    credentials_info, scopes=SCOPES
+                )
+                self.logger.debug(
+                    f"Using service account: {credentials_info.get('client_email', 'N/A')}"
+                )
+            else:
+                # For OAuth credentials
+                credentials = Credentials.from_authorized_user_info(
+                    credentials_info, SCOPES
+                )
+                # Check if token needs refresh
+                if credentials.expired and credentials.refresh_token:
+                    try:
+                        from google.auth.transport.requests import Request
+                        credentials.refresh(Request())
+                        self.logger.info("OAuth token refreshed successfully")
+                    except Exception as refresh_error:
+                        self.logger.error(f"Failed to refresh OAuth token: {refresh_error}")
+                        return False
 
-                self.service = build("sheets", "v4", credentials=credentials)
-                return True
+            self.service = build("sheets", "v4", credentials=credentials)
+            self.logger.info("Google Sheets authentication successful")
+            return True
 
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in SHEETS_CREDENTIALS: {e}")
+            return False
         except Exception as e:
             self.logger.error(f"Authentication failed: {e}")
             return False
@@ -290,6 +314,39 @@ class StorageManager:
 
         return new_links
 
+    def _get_last_data_row(self) -> int:
+        """
+        Find the last row with data in column A (where our hackathon data starts).
+        
+        Returns:
+            Row number of the last row with data (1-indexed), or 1 if sheet is empty
+        """
+        try:
+            # Get all values in column A to find the last row with data
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{self.sheet_name}!A:A"
+            ).execute()
+            
+            values = result.get("values", [])
+            if not values:
+                return 1  # Sheet is empty, return header row
+            
+            # Find the last non-empty row in column A
+            last_row = len(values)
+            # Skip trailing empty rows
+            while last_row > 0 and (last_row > len(values) or not values[last_row - 1] or not values[last_row - 1][0].strip()):
+                last_row -= 1
+            
+            return max(1, last_row)  # At least row 1 (headers)
+            
+        except HttpError as error:
+            self.logger.warning(f"Error finding last row, defaulting to row 2: {error}")
+            return 2  # Default to row 2 (after headers)
+        except Exception as e:
+            self.logger.warning(f"Error finding last row, defaulting to row 2: {e}")
+            return 2
+
     def add_hackathons_batch(self, hackathons: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Add multiple hackathons to the Google Sheet in a single operation.
@@ -311,27 +368,88 @@ class StorageManager:
                 row_data = self._prepare_row_data(hackathon)
                 rows_to_add.append(row_data)
 
-            # Batch append to sheet
+            # Find the last row with data to ensure we append at the correct location
+            last_row = self._get_last_data_row()
+            next_row = last_row + 1
+            
+            # Use a specific range starting from column A to ensure proper alignment
+            # Column M is the 13th column (matches our 13 headers)
+            range_name = f"{self.sheet_name}!A{next_row}:M"
+            
+            self.logger.debug(f"Appending {len(hackathons)} rows starting at row {next_row} (last row: {last_row})")
+
+            # Batch append to sheet using specific range to ensure column A alignment
             body = {"values": rows_to_add}
 
-            self.service.spreadsheets().values().append(
+            result = self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,
-                range=f"{self.sheet_name}!A:Z",
+                range=range_name,
                 valueInputOption="USER_ENTERED",
                 insertDataOption="INSERT_ROWS",
                 body=body,
             ).execute()
 
-            added_count = len(hackathons)
+            # Log detailed response for debugging
+            updates = result.get("updates", {})
+            updated_range = updates.get("updatedRange", "N/A")
+            updated_rows = updates.get("updatedRows", 0)
+            updated_cells = updates.get("updatedCells", 0)
+            
             self.logger.info(
-                f"Added {added_count} hackathons to sheet in batch operation"
+                f"Added {len(hackathons)} hackathons to sheet in batch operation"
             )
+            self.logger.debug(
+                f"API Response - Updated range: {updated_range}, "
+                f"Rows: {updated_rows}, Cells: {updated_cells}"
+            )
+            
+            # Verify the write was successful
+            if updated_rows == 0:
+                error_msg = (
+                    f"API returned 0 updated rows - data was NOT written! "
+                    f"Attempted to write {len(hackathons)} hackathons. "
+                    f"Check: 1) Service account permissions, 2) Spreadsheet ID, 3) Sheet name"
+                )
+                self.logger.error(f"⚠️  {error_msg}")
+                raise StorageError(error_msg)
+            elif updated_rows != len(hackathons):
+                error_msg = (
+                    f"Partial write detected! Expected {len(hackathons)} rows but only "
+                    f"{updated_rows} were updated. Data may be incomplete."
+                )
+                self.logger.error(f"⚠️  {error_msg}")
+                raise StorageError(error_msg)
 
-            return {"count": added_count, "new_hackathons": hackathons}
+            # Only return success when all rows were written
+            return {"count": len(hackathons), "new_hackathons": hackathons}
 
         except HttpError as error:
+            error_details = error.error_details if hasattr(error, 'error_details') else str(error)
             self.logger.error(f"Error batch adding hackathons: {error}")
-            return {"count": 0, "new_hackathons": []}
+            self.logger.error(f"Error details: {error_details}")
+            self.logger.error(f"Spreadsheet ID: {self.spreadsheet_id}, Sheet: {self.sheet_name}")
+            
+            error_msg = f"Failed to write {len(hackathons)} hackathons to Google Sheets"
+            if error.resp.status == 403:
+                error_msg += " - Permission denied. Ensure service account has Editor access to the spreadsheet."
+                self.logger.error("Permission denied - ensure service account has Editor access to the spreadsheet")
+            elif error.resp.status == 404:
+                error_msg += " - Spreadsheet not found. Check GOOGLE_SHEETS_ID environment variable."
+                self.logger.error("Spreadsheet not found - check GOOGLE_SHEETS_ID environment variable")
+            else:
+                error_msg += f" - HTTP {error.resp.status}: {error_details}"
+            
+            raise StorageError(error_msg) from error
+        except StorageError:
+            # Re-raise StorageError as-is
+            raise
+        except Exception as e:
+            error_msg = (
+                f"Unexpected error batch adding hackathons: {e}. "
+                f"Spreadsheet ID: {self.spreadsheet_id}, Sheet: {self.sheet_name}"
+            )
+            self.logger.error(error_msg)
+            raise StorageError(error_msg) from e
 
     def add_hackathon(self, hackathon: Dict[str, Any]) -> bool:
         """
