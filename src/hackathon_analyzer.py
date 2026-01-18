@@ -309,7 +309,7 @@ Return your response as a valid JSON object (wrap in ```json code block if neede
             "mode": "virtual/in-person/hybrid",
             "tweet": "Start with 'New Hackathon Alert'. Create a short , engaging hook about the hackathon's theme
                       and the opportunity to win prize. Write in enthusiastic but human-like - which means no ai-ish sentences
-                      including the use of em or en dash - tone and do NOT use emojis. End with the link."
+                      including the use of em or en dash - tone and do NOT use emojis. But make sure to include important details like the name of the hackathon, dates, prizes and link. Non-negotiable. All this, which still keeps it under the tweet character limit. "
         }}
     ],
     "rejected_count": <number of hackathons that didn't meet criteria>,
