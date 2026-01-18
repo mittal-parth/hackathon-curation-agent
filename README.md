@@ -2,6 +2,11 @@
 
 An intelligent agent that automatically curates hackathons from your email newsletters, evaluates them using AI, and posts the best ones to Twitter.
 
+🌐 [webclub.nitk.ac.in/hackclub_nitk](https://webclub.nitk.ac.in/hackclub_nitk)
+
+<img width="16" alt="image" src="https://github.com/user-attachments/assets/f5a6c316-51c7-4da3-ba52-b55af7e177a7" /> [x.com/HackClubNITK](https://x.com/HackClubNITK)
+
+
 <img width="839" height="843" alt="image" src="https://github.com/user-attachments/assets/6cc210e4-f865-4112-a315-11c8fd824000" />
 
 
