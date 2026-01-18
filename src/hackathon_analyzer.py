@@ -307,9 +307,15 @@ Return your response as a valid JSON object (wrap in ```json code block if neede
             "prizes": "Prize information with USD amount",
             "prize_amount_usd": <total prize value in USD as integer>,
             "mode": "virtual/in-person/hybrid",
-            "tweet": "Start with 'New Hackathon Alert'. Create a short , engaging hook about the hackathon's theme
-                      and the opportunity to win prize. Write in enthusiastic but human-like - which means no ai-ish sentences
-                      including the use of em or en dash - tone and do NOT use emojis. But make sure to include important details like the name of the hackathon, dates, prizes and link. Non-negotiable. All this, which still keeps it under the tweet character limit. "
+            "tweet": "Format as a clean, lowercase post with newlines for readability. Structure:\n"
+                     "1. [Hook about prize pool] (e.g., 'new hackathon with $5,000 prize pool!')\n"
+                     "2. [Empty Line]\n"
+                     "3. [One sentence description of what to build]\n"
+                     "4. [Empty Line]\n"
+                     "5. [Dates]\n"
+                     "6. [Empty Line]\n"
+                     "7. 'register here: ' [Link]\n"
+                     "STRICTLY all lowercase (no capital letters). No emojis. Standard punctuation (., !, ?) is allowed."
         }}
     ],
     "rejected_count": <number of hackathons that didn't meet criteria>,
