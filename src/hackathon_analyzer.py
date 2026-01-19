@@ -307,7 +307,15 @@ Return your response as a valid JSON object (wrap in ```json code block if neede
             "prizes": "Prize information with USD amount",
             "prize_amount_usd": <total prize value in USD as integer>,
             "mode": "virtual/in-person/hybrid",
-            "tweet": "Simple tweet with format:\\n\\nName: [name]\\nLink: [link]\\n📅 Dates: [dates]\\n🎯 Theme: [theme]\\n💰 Prizes: [prizes]"
+            "tweet": "Format as a clean, lowercase post with newlines for readability. Make sure to keep it under the tweet character limit. Structure:\n"
+                     "1. [Hook about prize pool] (e.g., 'new hackathon with $5,000 prize pool!')\n"
+                     "2. [Empty Line]\n"
+                     "3. [One sentence description of what to build]\n"
+                     "4. [Empty Line]\n"
+                     "5. [Dates]\n"
+                     "6. [Empty Line]\n"
+                     "7. 'register here: ' [Link]\n"
+                     "STRICTLY all lowercase (no capital letters). No emojis. Standard punctuation (., !, ?) is allowed."
         }}
     ],
     "rejected_count": <number of hackathons that didn't meet criteria>,
@@ -319,7 +327,7 @@ AI ANALYSIS GUIDELINES:
 2. Verify registration deadlines are in the future
 3. Only include legitimate, well-organized hackathons
 4. Keep theme as a single main category
-5. Make tweets concise and informative
+5. Make tweets human-like and conversational. Strictly NO EMOJIS. Start with 'New Hackathon Alert'.
 6. If you can't find clear information, don't include the hackathon
 7. This is batch {len(urls)} of {self.batch_size} - focus on quality analysis for each URL
 
