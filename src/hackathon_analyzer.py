@@ -307,7 +307,7 @@ Return your response as a valid JSON object (wrap in ```json code block if neede
             "prizes": "Prize information with USD amount",
             "prize_amount_usd": <total prize value in USD as integer>,
             "mode": "virtual/in-person/hybrid",
-            "tweet": "Format as a clean, lowercase post with newlines for readability. Structure:\n"
+            "tweet": "Format as a clean, lowercase post with newlines for readability. Make sure to keep it under the tweet character limit. Structure:\n"
                      "1. [Hook about prize pool] (e.g., 'new hackathon with $5,000 prize pool!')\n"
                      "2. [Empty Line]\n"
                      "3. [One sentence description of what to build]\n"
