@@ -126,62 +126,72 @@ class HackathonAnalyzer:
         """
         Analyze all hackathon URLs using AI in batches of 4.
         Extracts data, applies criteria, and generates tweet content.
-
         Args:
             urls: List of URLs to analyze
 
         Returns:
-            List of approved hackathon data dictionaries with tweet content
+            List of approved hackathon data dicts with tweet content
+
         """
         if not urls:
-            self.logger.info("No URLs to analyze")
+            self.logger.info("No URLs to analyze.")
             return []
-
         self.logger.info(
-            f"🤖 AI analyzing {len(urls)} hackathon URLs in batches of {self.batch_size}..."
+            f" AI analyzing {len(urls)} hackathon URLs in batches of {self.batch_size}..."
         )
+        unique_hackathon_map: Dict[str, Dict[str, Any]] = {}
 
-        # Process URLs in batches
-        all_hackathons = []
         total_analyzed = 0
         total_rejected = 0
         failed_batches = 0
+        duplicates_skipped = 0
 
         for i in range(0, len(urls), self.batch_size):
             batch_urls = urls[i:i + self.batch_size]
             batch_num = (i // self.batch_size) + 1
-            total_batches = (len(urls) + self.batch_size - 1) // self.batch_size
-            
-            self.logger.info(f"📦 Processing batch {batch_num}/{total_batches} with {len(batch_urls)} URLs")
-            
+            total_batches = (len(urls) + self.batch_size -1) //self.batch_size
+
+            self.logger.info(f" Processing batch {batch_num}/{total_batches} with {len(batch_urls)} URLs")
+
             try:
                 batch_result = await self._analyze_batch(batch_urls)
-                
+
                 if batch_result:
                     batch_hackathons = batch_result.get("approved_hackathons", [])
                     batch_analyzed = batch_result.get("total_analyzed", len(batch_urls))
                     batch_rejected = batch_result.get("rejected_count", 0)
-                    
-                    all_hackathons.extend(batch_hackathons)
+
+                    for hackathon in batch_hackathons:
+                        link = hackathon.get("link")
+                        if link:
+                            normalized_link = link.strip().rstrip('/')
+
+                            if normalized_link not in unique_hackathon_map:
+                                unique_hackathon_map[normalized_link] = hackathon
+                            else:
+                                duplicates_skipped += 1
+                                self.logger.info(f"Duplicate link skipped: {link}" )
+                        else:
+                            self.logger.warning(f" Hackathon missing link, skipping duplication check: {hackathon.get('name')}")
+
                     total_analyzed += batch_analyzed
                     total_rejected += batch_rejected
-                    
-                    self.logger.info(f"✅ Batch {batch_num}: {len(batch_hackathons)} approved, {batch_rejected} rejected")
+                    self.logger.info(f"Batch {batch_num}: {len(batch_hackathons)} found, {batch_rejected} rejected.")
                 else:
-                    self.logger.warning(f"⚠️ Batch {batch_num}: Analysis failed")
+                    self.logger.warning(f" Batch {batch_num}: Analysis failed")
                     total_analyzed += len(batch_urls)
                     failed_batches += 1
-                
-                # Add small delay between batches to avoid rate limiting
+
                 if batch_num < total_batches:
                     await asyncio.sleep(self.batch_delay)
-                    
+
             except Exception as e:
-                self.logger.error(f"❌ Batch {batch_num} analysis error: {e}")
+                self.logger.error(f" Batch {batch_num} analysis error: {e}")
                 total_analyzed += len(batch_urls)
                 failed_batches += 1
 
-        # Add metadata to each hackathon
+        all_hackathons = list(unique_hackathon_map.values())
+
         current_time = datetime.now().isoformat()
         for hackathon in all_hackathons:
             hackathon["analyzed_at"] = current_time
@@ -190,21 +200,23 @@ class HackathonAnalyzer:
                 "grounding_chunks": 0,
                 "grounding_supports": 0,
                 "ai_search_performed": True,
-                "batch_processing": True,
                 "total_batches": total_batches,
                 "failed_batches": failed_batches
             }
 
-        self.logger.info(f"🎯 AI analyzed {total_analyzed} URLs successfully across {total_batches} batches")
+        self.logger.info(f" AI analyzed {total_analyzed} URLs successfully across {total_batches} batches")
         self.logger.info(
-            f"✅ Total approved: {len(all_hackathons)}, total rejected: {total_rejected}, failed batches: {failed_batches}"
+            f" Total approved: {len(all_hackathons)}, Duplicates Removed: {duplicates_skipped}, "
+            f"Total rejected: {total_rejected}, Failed batches: {failed_batches}"
         )
 
-        # Log approved hackathons
         for hackathon in all_hackathons:
-            self.logger.info(f"🚀 AI Approved: {hackathon.get('name', 'Unknown')}")
+            self.logger.info(f" AI approved: {hackathon.get('name', 'unknown')}")
 
         return all_hackathons
+
+
+
 
     async def _analyze_batch(self, urls: List[str]) -> Dict[str, Any]:
         """
