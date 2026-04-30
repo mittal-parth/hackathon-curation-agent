@@ -7,6 +7,7 @@ Main orchestrator script that coordinates all components.
 import asyncio
 import logging
 import os
+import re
 import sys
 from typing import List, Dict, Any
 from datetime import datetime
@@ -121,6 +122,50 @@ class HackathonCurationAgent:
             email.strip() for email in recipients_env.split(",") if email.strip()
         ]
         return recipients
+
+    def _clean_tweet_body(self, tweet_text: str) -> str:
+        """Normalize AI-generated tweet body by removing links and enforcing lowercase."""
+        if not tweet_text:
+            return ""
+
+        # Remove links from model output so only canonical link is posted.
+        without_links = re.sub(r"https?://\S+", "", tweet_text)
+        lines = [line.strip() for line in without_links.splitlines()]
+        compact = "\n".join(line for line in lines if line)
+        return compact.lower().strip()
+
+    def _compose_tweet_text(self, hackathon: Dict[str, Any]) -> str:
+        """Build final tweet text and append canonical link only if it fits."""
+        canonical_link = str(hackathon.get("link", "")).strip()
+
+        draft = self._clean_tweet_body(str(hackathon.get("tweet", "")))
+        body = draft
+        if not body:
+            name = str(hackathon.get("name", "hackathon")).strip().lower()
+            prizes = str(hackathon.get("prizes", "")).strip().lower()
+            dates = str(hackathon.get("dates", "")).strip().lower()
+            fallback_parts = [name]
+            if prizes:
+                fallback_parts.append(f"prize: {prizes}")
+            if dates:
+                fallback_parts.append(f"dates: {dates}")
+            body = "\n".join(fallback_parts).strip()
+
+        if not canonical_link:
+            self.logger.warning(
+                f"Missing canonical link for tweet: {hackathon.get('name', 'Unknown')}"
+            )
+            return body
+
+        with_link = f"{body}\n\napply: {canonical_link}"
+        if len(with_link) <= 280:
+            return with_link
+
+        # If link pushes tweet over limit, keep body only.
+        self.logger.warning(
+            f"Skipping link in tweet due to length: {hackathon.get('name', 'Unknown')}"
+        )
+        return body
 
     def check_required_env_vars(self):
         """Check if all required environment variables are set."""
@@ -542,9 +587,9 @@ class HackathonCurationAgent:
 
         for hackathon in hackathons_to_post:
             try:
-                tweet_content = hackathon.get("tweet", "")
+                tweet_content = self._compose_tweet_text(hackathon)
                 if tweet_content:
-                    # Post the pregenerated tweet
+                    # Post validated tweet with canonical link.
                     if self.twitter_poster.post_tweet(tweet_content):
                         successful_posts += 1
                         posted_names.append(hackathon.get("name", "Unknown"))

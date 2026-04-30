@@ -71,10 +71,9 @@ class TwitterPoster:
             time.sleep(wait_time)
 
         try:
-            # Ensure tweet is within character limit
             if len(tweet_text) > 280:
-                tweet_text = tweet_text[:277] + "..."
-                self.logger.warning("Tweet truncated to fit character limit")
+                self.logger.error("Tweet exceeds 280 characters; skipping post")
+                return False
 
             response = self.client.create_tweet(text=tweet_text)
             tweet_id = response.data["id"]

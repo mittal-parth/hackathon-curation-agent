@@ -301,21 +301,13 @@ Return your response as a valid JSON object (wrap in ```json code block if neede
         {{
             "name": "Hackathon name",
             "link": "original URL",
-            "dates": "Start date - End date (YYYY-MM-DD format)",
+            "dates": "Human-friendly date range (example: 'may 10 to june 2, 2026')",
             "registration_deadline": "YYYY-MM-DD or null if not found",
             "theme": "Main theme (e.g., AI, Web3, FinTech, Healthcare)",
             "prizes": "Prize information with USD amount",
             "prize_amount_usd": <total prize value in USD as integer>,
             "mode": "virtual/in-person/hybrid",
-            "tweet": "Format as a clean, lowercase post with newlines for readability. Make sure to keep it under the tweet character limit. Structure:\n"
-                     "1. [Hook about prize pool] (e.g., 'new hackathon with $5,000 prize pool!')\n"
-                     "2. [Empty Line]\n"
-                     "3. [One sentence description of what to build]\n"
-                     "4. [Empty Line]\n"
-                     "5. [Dates]\n"
-                     "6. [Empty Line]\n"
-                     "7. 'register here: ' [Link]\n"
-                     "STRICTLY all lowercase (no capital letters). No emojis. Standard punctuation (., !, ?) is allowed."
+            "tweet": "Write one catchy lowercase draft tweet under 220 chars (excluding any link). Do NOT include any URL in this field. Use simple line breaks and vary style each time."
         }}
     ],
     "rejected_count": <number of hackathons that didn't meet criteria>,
@@ -327,9 +319,19 @@ AI ANALYSIS GUIDELINES:
 2. Verify registration deadlines are in the future
 3. Only include legitimate, well-organized hackathons
 4. Keep theme as a single main category
-5. Make tweets human-like and conversational. Strictly NO EMOJIS. Start with 'New Hackathon Alert'.
-6. If you can't find clear information, don't include the hackathon
-7. This is batch {len(urls)} of {self.batch_size} - focus on quality analysis for each URL
+5. Tweet drafting rules:
+   - STRICTLY lowercase only
+   - NO emojis
+   - include the hackathon name, prize, and dates in human friendly wording
+   - never include a URL in tweet text; link will be appended separately
+   - keep tweet field <= 220 characters so final link can fit safely
+6. Rotate tweet opening/line-break style across these examples (guidance only, do not copy exactly):
+   a) "{{name}} is live for builders chasing {{prize}}.\n\nbuild {{hook}}.\n\nruns {{human-friendly dates}}"
+   b) "builders, {{name}} looks worth a look.\n\n{{prize}} in prizes. runs {{human-friendly dates}}."
+   c) "{{name}} is calling builders working on {{theme}}.\n\nprize: {{prize}}\ndates: {{human-friendly dates}}"
+   d) "new one for {{theme}} builders: {{name}}.\n\nwin {{prize}} by building {{hook}}.\n\ndates: {{human-friendly dates}}"
+7. If you can't find clear information, don't include the hackathon
+8. This is batch {len(urls)} of {self.batch_size} - focus on quality analysis for each URL
 
 Apply your AI intelligence to extract accurate information and evaluate criteria strictly.
 """
