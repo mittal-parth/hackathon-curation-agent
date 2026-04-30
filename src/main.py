@@ -142,14 +142,14 @@ class HackathonCurationAgent:
 
     def _compose_tweet_text(self, hackathon: Dict[str, Any]) -> str:
         """Build final tweet text and append canonical link only if it fits."""
-        canonical_link = str(hackathon.get("link", "")).strip()
+        canonical_link = str(hackathon.get("link") or "").strip()
 
-        draft = self._clean_tweet_body(str(hackathon.get("tweet", "")))
+        draft = self._clean_tweet_body(str(hackathon.get("tweet") or ""))
         body = draft
         if not body:
-            name = str(hackathon.get("name", "hackathon")).strip().lower()
-            prizes = str(hackathon.get("prizes", "")).strip().lower()
-            dates = str(hackathon.get("dates", "")).strip().lower()
+            name = str(hackathon.get("name") or "hackathon").strip().lower()
+            prizes = str(hackathon.get("prizes") or "").strip().lower()
+            dates = str(hackathon.get("dates") or "").strip().lower()
             fallback_parts = [name]
             if prizes:
                 fallback_parts.append(f"prize: {prizes}")
