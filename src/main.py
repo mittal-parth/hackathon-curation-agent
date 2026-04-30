@@ -7,6 +7,7 @@ Main orchestrator script that coordinates all components.
 import asyncio
 import logging
 import os
+import re
 import sys
 from typing import List, Dict, Any
 from datetime import datetime
@@ -14,7 +15,12 @@ from datetime import datetime
 from email_processor import EmailProcessor
 from hackathon_analyzer import HackathonAnalyzer
 from storage_manager import StorageManager
-from twitter_poster import TwitterPoster
+from twitter_poster import (
+    TwitterPoster,
+    get_twitter_weighted_length,
+    TWITTER_TWEET_MAX_LENGTH,
+    TWITTER_URL_LENGTH,
+)
 
 
 # Load environment variables based on DEV_MODE flag
@@ -121,6 +127,56 @@ class HackathonCurationAgent:
             email.strip() for email in recipients_env.split(",") if email.strip()
         ]
         return recipients
+
+    def _clean_tweet_body(self, tweet_text: str) -> str:
+        """Normalize AI-generated tweet body by removing links and enforcing lowercase."""
+        if not tweet_text:
+            return ""
+
+        # Remove links from model output so only canonical link is posted.
+        without_links = re.sub(r"https?://\S+", "", tweet_text)
+        # Keep intentional blank lines for readability while normalizing whitespace.
+        lines = [line.strip() for line in without_links.strip().splitlines()]
+        compact = "\n".join(lines)
+        return compact.lower().strip()
+
+    def _compose_tweet_text(self, hackathon: Dict[str, Any]) -> str:
+        """Build final tweet text and append canonical link only if it fits."""
+        canonical_link = str(hackathon.get("link") or "").strip()
+
+        draft = self._clean_tweet_body(str(hackathon.get("tweet") or ""))
+        body = draft
+        if not body:
+            name = str(hackathon.get("name") or "hackathon").strip().lower()
+            prizes = str(hackathon.get("prizes") or "").strip().lower()
+            dates = str(hackathon.get("dates") or "").strip().lower()
+            fallback_parts = [name]
+            if prizes:
+                fallback_parts.append(f"prize: {prizes}")
+            if dates:
+                fallback_parts.append(f"dates: {dates}")
+            body = "\n".join(fallback_parts).strip()
+
+        if not canonical_link:
+            self.logger.warning(
+                f"Missing canonical link for tweet: {hackathon.get('name', 'Unknown')}"
+            )
+            return body
+
+        with_link = f"{body}\n\napply: {canonical_link}"
+        if get_twitter_weighted_length(with_link) <= TWITTER_TWEET_MAX_LENGTH:
+            return with_link
+
+        # Twitter counts URLs with fixed weighted length.
+        # If the link cannot fit, post body-only and add link manually if needed.
+        self.logger.warning(
+            f"Tweet too long to include link: {hackathon.get('name', 'Unknown')}"
+        )
+        self.logger.info(
+            f"Weighted length details: body={get_twitter_weighted_length(body)}, "
+            f"suffix={len('\n\napply: ') + TWITTER_URL_LENGTH}, max={TWITTER_TWEET_MAX_LENGTH}"
+        )
+        return body
 
     def check_required_env_vars(self):
         """Check if all required environment variables are set."""
@@ -542,9 +598,9 @@ class HackathonCurationAgent:
 
         for hackathon in hackathons_to_post:
             try:
-                tweet_content = hackathon.get("tweet", "")
+                tweet_content = self._compose_tweet_text(hackathon)
                 if tweet_content:
-                    # Post the pregenerated tweet
+                    # Post validated tweet with canonical link.
                     if self.twitter_poster.post_tweet(tweet_content):
                         successful_posts += 1
                         posted_names.append(hackathon.get("name", "Unknown"))
