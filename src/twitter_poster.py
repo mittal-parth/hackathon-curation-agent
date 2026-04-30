@@ -2,6 +2,28 @@ import os
 import tweepy
 import logging
 import time
+import re
+
+
+URL_PATTERN = re.compile(r"https?://\S+")
+TWITTER_URL_LENGTH = 23
+TWITTER_TWEET_MAX_LENGTH = 280
+
+
+def get_twitter_weighted_length(text: str) -> int:
+    """Calculate tweet length using Twitter URL weighting rules."""
+    if not text:
+        return 0
+
+    weighted = 0
+    cursor = 0
+    for match in URL_PATTERN.finditer(text):
+        weighted += len(text[cursor:match.start()])
+        weighted += TWITTER_URL_LENGTH
+        cursor = match.end()
+
+    weighted += len(text[cursor:])
+    return weighted
 
 
 class TwitterPoster:
@@ -71,7 +93,7 @@ class TwitterPoster:
             time.sleep(wait_time)
 
         try:
-            if len(tweet_text) > 280:
+            if get_twitter_weighted_length(tweet_text) > TWITTER_TWEET_MAX_LENGTH:
                 self.logger.error("Tweet exceeds 280 characters; skipping post")
                 return False
 

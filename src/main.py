@@ -15,7 +15,12 @@ from datetime import datetime
 from email_processor import EmailProcessor
 from hackathon_analyzer import HackathonAnalyzer
 from storage_manager import StorageManager
-from twitter_poster import TwitterPoster
+from twitter_poster import (
+    TwitterPoster,
+    get_twitter_weighted_length,
+    TWITTER_TWEET_MAX_LENGTH,
+    TWITTER_URL_LENGTH,
+)
 
 
 # Load environment variables based on DEV_MODE flag
@@ -130,8 +135,9 @@ class HackathonCurationAgent:
 
         # Remove links from model output so only canonical link is posted.
         without_links = re.sub(r"https?://\S+", "", tweet_text)
-        lines = [line.strip() for line in without_links.splitlines()]
-        compact = "\n".join(line for line in lines if line)
+        # Keep intentional blank lines for readability while normalizing whitespace.
+        lines = [line.strip() for line in without_links.strip().splitlines()]
+        compact = "\n".join(lines)
         return compact.lower().strip()
 
     def _compose_tweet_text(self, hackathon: Dict[str, Any]) -> str:
@@ -158,12 +164,17 @@ class HackathonCurationAgent:
             return body
 
         with_link = f"{body}\n\napply: {canonical_link}"
-        if len(with_link) <= 280:
+        if get_twitter_weighted_length(with_link) <= TWITTER_TWEET_MAX_LENGTH:
             return with_link
 
-        # If link pushes tweet over limit, keep body only.
+        # Twitter counts URLs with fixed weighted length.
+        # If the link cannot fit, post body-only and add link manually if needed.
         self.logger.warning(
-            f"Skipping link in tweet due to length: {hackathon.get('name', 'Unknown')}"
+            f"Tweet too long to include link: {hackathon.get('name', 'Unknown')}"
+        )
+        self.logger.info(
+            f"Weighted length details: body={get_twitter_weighted_length(body)}, "
+            f"suffix={len('\n\napply: ') + TWITTER_URL_LENGTH}, max={TWITTER_TWEET_MAX_LENGTH}"
         )
         return body
 
