@@ -172,9 +172,10 @@ class HackathonCurationAgent:
         self.logger.warning(
             f"Tweet too long to include link: {hackathon.get('name', 'Unknown')}"
         )
+        link_prefix_length = len("\n\napply: ")
         self.logger.info(
             f"Weighted length details: body={get_twitter_weighted_length(body)}, "
-            f"suffix={len('\n\napply: ') + TWITTER_URL_LENGTH}, max={TWITTER_TWEET_MAX_LENGTH}"
+            f"suffix={link_prefix_length + TWITTER_URL_LENGTH}, max={TWITTER_TWEET_MAX_LENGTH}"
         )
         return body
 
